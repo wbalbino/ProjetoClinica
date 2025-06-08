@@ -16,6 +16,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { ScheduleTimeList } from './schedule-time-list'
 import { createNewAppointment } from '../_actions/create-appointment'
 import { toast } from 'sonner'
+import { format } from 'date-fns'
+import { sendAppointmentEmail } from '@/lib/send-email'
 
 type UserWithServiceAndSubscription = Prisma.UserGetPayload<{
   include: {
@@ -49,7 +51,6 @@ export function ScheduleContent({ clinic }: ScheduleContentProps) {
 
   // Quais os horários bloqueados 01/02/2025 > ["15:00", "18:00"]
   const [blockedTimes, setBlockedTimes] = useState<string[]>([])
-
 
   // Função que busca os horários bloqueados (via Fetch HTTP)
   const fetchBlockedTimes = useCallback(async (date: Date): Promise<string[]> => {
@@ -122,10 +123,24 @@ export function ScheduleContent({ clinic }: ScheduleContentProps) {
       return;
     }
 
+    // Preparar e enviar email
+    const service = clinic.services.find(s => s.id === formData.serviceId);
+    if (service) {
+      await sendAppointmentEmail({
+        to_name: formData.name,
+        to_email: formData.email,
+        service_name: service.name,
+        appointment_date: format(formData.date, 'dd/MM/yyyy'),
+        appointment_time: selectedTime,
+        clinic_name: clinic.name || 'Clínica',
+        clinic_address: clinic.address || 'Endereço não informado',
+        clinic_phone: clinic.phone || 'Telefone não informado'
+      });
+    }
+
     toast.success("Consulta agendada com sucesso!")
     form.reset();
     setSelectedTime("")
-
   }
 
   return (
